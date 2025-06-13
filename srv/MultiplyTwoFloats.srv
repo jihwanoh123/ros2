@@ -1,0 +1,6 @@
+# Request
+float64 a
+float64 b
+---
+# Response
+float64 product

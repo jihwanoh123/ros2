@@ -1,6 +1,6 @@
 # Matrix Publisher ROS2 Package
 
-A ROS2 package that demonstrates matrix publishing/subscribing and service handling using `Float64MultiArray` messages and `AddTwoInts` service. This package serves as a learning resource for C++ and ROS2 development.
+A ROS2 package that demonstrates matrix publishing/subscribing and service handling using `Float64MultiArray` messages and `MultiplyTwoFloats` service. This package serves as a learning resource for C++ and ROS2 development.
 
 ## Project Structure
 
@@ -9,9 +9,10 @@ matrix_publisher/
 ├── src/
 │   ├── matrix_publisher_node.cpp    # Publisher node
 │   ├── matrix_subscriber_node.cpp   # Subscriber node
-│   ├── add_server_node.cpp         # Service server node
-│   ├── adder_client_node.cpp       # Command-line client node
-│   └── interactive_client_node.cpp # Interactive client node
+│   ├── multiply_server_node.cpp     # Service server node
+│   ├── bridge_node.cpp             # Topic-to-service bridge node
+├── srv/
+│   └── MultiplyTwoFloats.srv       # Service definition
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
@@ -107,10 +108,10 @@ cd /Users/jihwan/ros2_ws
 source install/setup.bash
 
 # Run the server node
-ros2 run matrix_publisher add_server_node
+ros2 run matrix_publisher multiply_server_node
 ```
 
-#### Terminal 2 - Run Command-line Client
+#### Terminal 2 - Run Bridge
 ```bash
 # Open a new terminal and navigate to workspace
 cd /Users/jihwan/ros2_ws
@@ -118,16 +119,11 @@ cd /Users/jihwan/ros2_ws
 # Source the environment
 source install/setup.bash
 
-# Run the command-line client with two numbers
-ros2 run matrix_publisher adder_client_node 5 3
+# Run the bridge node
+ros2 run matrix_publisher bridge_node
 ```
 
-**Expected output**:
-```
-[INFO] [timestamp] [adder_client]: Result: 8
-```
-
-#### Terminal 2 (Alternative) - Run Interactive Client
+#### Terminal 3 - Publish to Input Topic
 ```bash
 # Open a new terminal and navigate to workspace
 cd /Users/jihwan/ros2_ws
@@ -135,16 +131,28 @@ cd /Users/jihwan/ros2_ws
 # Source the environment
 source install/setup.bash
 
-# Run the interactive client
-ros2 run matrix_publisher interactive_client_node
+# Publish test data
+ros2 topic pub /multiply_input example_interfaces/msg/Int64MultiArray "{data: [5, 3]}" --once
+```
+
+#### Terminal 4 - Monitor Results
+```bash
+# Open a new terminal and navigate to workspace
+cd /Users/jihwan/ros2_ws
+
+# Source the environment
+source install/setup.bash
+
+# Monitor the result topic
+ros2 topic echo /multiply_result
 ```
 
 **Expected output**:
 ```
-[INFO] [timestamp] [interactive_client]: Service available. Ready for input.
-Enter two integers (a b), or Ctrl+C to exit: 5 3
-[INFO] [timestamp] [interactive_client]: Result: 8
-Enter two integers (a b), or Ctrl+C to exit: 
+[INFO] [timestamp] [topic_service_bridge]: Bridge ready
+[INFO] [timestamp] [topic_service_bridge]: Sending request: 5.00 * 3.00
+[INFO] [timestamp] [topic_service_bridge]: Result: 15.00
+[INFO] [timestamp] [topic_service_bridge]: Published result: 15.00
 ```
 
 ## What the Code Does
@@ -159,23 +167,17 @@ Enter two integers (a b), or Ctrl+C to exit:
 - Receives `Float64MultiArray` messages
 - Reshapes the flat array back into a 2x3 matrix and displays it
 
-### Service Server (`add_server_node.cpp`)
-- Creates a service server listening on `/add`
-- Uses `AddTwoInts` service interface (takes two integers, returns their sum)
-- Performs addition: `a + b = sum`
+### Service Server (`multiply_server_node.cpp`)
+- Creates a service server listening on `/multiply`
+- Uses `MultiplyTwoFloats` service interface (takes two floats, returns their product)
+- Performs multiplication: `a * b = product`
 - Logs each request with the calculation
 
-### Command-line Client (`adder_client_node.cpp`)
-- Takes two integers as command-line arguments
-- Creates a service client for the `/add` service
-- Sends a single request and displays the result
-- Automatically shuts down after receiving the response
-
-### Interactive Client (`interactive_client_node.cpp`)
-- Creates a service client for the `/add` service
-- Waits for the service to become available
-- Continuously prompts for two integers
-- Sends requests and displays results until Ctrl+C is pressed
+### Bridge Node (`bridge_node.cpp`)
+- Subscribes to `/multiply_input` topic (Int64MultiArray)
+- Extracts two numbers from the array
+- Calls the `/multiply` service with these numbers
+- Publishes the result to `/multiply_result` topic (Float64)
 
 ## C++ and ROS2 Learning Points
 
@@ -209,10 +211,11 @@ Enter two integers (a b), or Ctrl+C to exit:
    - Publisher/Subscriber (pub/sub)
    - Service/Client (request/response)
    - Topic and service naming
+   - Bridge pattern (connecting topics to services)
 
 3. **Message Types**
    - `Float64MultiArray` for matrix data
-   - `AddTwoInts` service interface
+   - `MultiplyTwoFloats` service interface
 
 4. **ROS2 Best Practices**
    - Proper node naming
@@ -224,9 +227,11 @@ Enter two integers (a b), or Ctrl+C to exit:
 
 ### Topics
 - `/matrix` - `std_msgs/msg/Float64MultiArray` - Matrix data
+- `/multiply_input` - `example_interfaces/msg/Int64MultiArray` - Input numbers for multiplication
+- `/multiply_result` - `std_msgs/msg/Float64` - Result of multiplication
 
 ### Services
-- `/add` - `example_interfaces/srv/AddTwoInts` - Addition service
+- `/multiply` - `matrix_publisher/srv/MultiplyTwoFloats` - Multiplication service
 
 ## Troubleshooting
 
@@ -262,10 +267,10 @@ ros2 topic echo /matrix
 ros2 service list
 
 # Show service info
-ros2 service type /add
+ros2 service type /multiply
 
 # Check service interface
-ros2 interface show example_interfaces/srv/AddTwoInts
+ros2 interface show matrix_publisher/srv/MultiplyTwoFloats
 ```
 
 ## Learning Resources

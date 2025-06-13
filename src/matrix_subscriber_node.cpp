@@ -36,16 +36,6 @@ private:
             std::cout << std::endl;
         }
     }
-    // void callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
-    //     RCLCPP_INFO(this->get_logger(), "Received matrix of size %zu", msg->data.size());
-
-    //     std::cout << "Contents: ";
-    //     for (double val : msg->data) {
-    //         std::cout << val << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
 };
 

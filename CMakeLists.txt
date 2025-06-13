@@ -10,6 +10,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(example_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+rosidl_generate_interfaces(${PROJECT_NAME}
+     "srv/MultiplyTwoFloats.srv"
+     DEPENDENCIES std_msgs
+   )
 
 # Add executable
 add_executable(matrix_publisher_node src/matrix_publisher_node.cpp)
@@ -24,6 +29,12 @@ add_executable(interactive_client_node src/interactive_client_node.cpp)
 ament_target_dependencies(interactive_client_node rclcpp example_interfaces)
 add_executable(bridge_node src/bridge_node.cpp)
 ament_target_dependencies(bridge_node rclcpp std_msgs example_interfaces)
+rosidl_target_interfaces(bridge_node
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+add_executable(multiply_server_node src/multiply_server_node.cpp)
+ament_target_dependencies(multiply_server_node rclcpp)
+rosidl_target_interfaces(multiply_server_node
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
 # Install executable
 install(TARGETS matrix_publisher_node
@@ -34,9 +45,11 @@ install(TARGETS add_server_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS adder_client_node
   DESTINATION lib/${PROJECT_NAME}) 
-  install(TARGETS interactive_client_node 
+install(TARGETS interactive_client_node 
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS bridge_node
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS multiply_server_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
