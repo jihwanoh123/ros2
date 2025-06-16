@@ -1,18 +1,22 @@
 # Matrix Publisher ROS2 Package
 
-A ROS2 package that demonstrates matrix publishing/subscribing and service handling using `Float64MultiArray` messages and `MultiplyTwoFloats` service. This package serves as a learning resource for C++ and ROS2 development.
+A comprehensive ROS2 package that demonstrates matrix publishing/subscribing, service handling, and robot control using C++ and Python. This package includes TurtleBot3 simulation examples and serves as a learning resource for ROS2 development.
 
 ## Project Structure
 
 ```
 matrix_publisher/
 ├── src/
-│   ├── matrix_publisher_node.cpp    # Publisher node
-│   ├── matrix_subscriber_node.cpp   # Subscriber node
-│   ├── multiply_server_node.cpp     # Service server node
+│   ├── matrix_publisher_node.cpp    # Publisher node for matrix data
+│   ├── matrix_subscriber_node.cpp   # Subscriber node for matrix data
+│   ├── multiply_server_node.cpp     # Service server node for multiplication
 │   ├── bridge_node.cpp             # Topic-to-service bridge node
+│   ├── teleop_control_node.cpp     # C++ keyboard teleop with obstacle avoidance
+│   ├── obstacle_avoider_node.cpp   # Autonomous obstacle avoidance node
+│   └── cmd_vel_publisher.cpp       # Simple velocity publisher node
 ├── srv/
 │   └── MultiplyTwoFloats.srv       # Service definition
+├── better_teleop.py               # Python keyboard teleop script
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
@@ -87,9 +91,11 @@ This will open Gazebo with a TurtleBot3 robot in a simulated world.
 
 ## TurtleBot3 Keyboard Control
 
-### Method 1: Custom Python Teleop (Recommended)
+### Method 1: Custom Teleop Scripts
 
-We've created a custom keyboard control script with improved responsiveness:
+We've created both Python and C++ keyboard control options with improved responsiveness:
+
+#### Option A: Python Teleop (Simple & Reliable)
 
 #### Step 1: Use the provided control script
 
@@ -110,6 +116,30 @@ The custom keyboard control script `better_teleop.py` is already provided in thi
 chmod +x better_teleop.py
 source /opt/ros/humble/setup.bash
 python3 better_teleop.py
+```
+
+#### Option B: C++ Smart Teleop (With Obstacle Avoidance)
+
+Advanced C++ keyboard control with built-in safety features:
+
+**Features:**
+- Obstacle detection using laser scan
+- Safety override prevents crashes
+- RViz visualization markers
+- Real-time distance feedback
+
+**Controls:**
+- `w` - Move forward (if safe)
+- `a` - Turn left
+- `d` - Turn right
+- `s` - Stop
+- `q` - Quit
+
+**Usage:**
+```bash
+# Make sure Gazebo is running, then:
+source install/setup.bash
+ros2 run matrix_publisher teleop_control_node
 ```
 
 ### Method 2: Standard TurtleBot3 Teleop
@@ -208,6 +238,142 @@ ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True
 ```
 
 This enables SLAM (Simultaneous Localization and Mapping) and autonomous navigation features.
+
+# C++ Robot Control Nodes
+
+This package includes several C++ nodes for robot control and obstacle avoidance. These demonstrate different approaches to robot control in ROS2.
+
+## C++ Control Nodes Overview
+
+### 1. Smart Keyboard Teleop (`teleop_control_node.cpp`)
+
+Advanced keyboard control with integrated laser scan obstacle detection and visualization markers.
+
+**Features:**
+- Real-time keyboard input for robot control
+- Laser scan integration for obstacle detection
+- Safety override - prevents forward movement when obstacles detected
+- RViz visualization markers for obstacle positions
+- Separate controls for forward/backward movement and turning
+
+**Usage:**
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Run smart teleop
+source install/setup.bash
+ros2 run matrix_publisher teleop_control_node
+
+# Terminal 3: Launch RViz to see markers (optional)
+rviz2
+```
+
+**Controls:**
+- `w` - Move forward (if path is clear)
+- `a` - Turn left
+- `d` - Turn right  
+- `s` - Stop/brake
+- `q` - Quit
+
+**Safety Features:**
+- Automatically stops if obstacle within 0.3 meters ahead
+- Allows turning even when obstacle detected
+- Visual markers in RViz show obstacle positions
+- Real-time distance feedback in terminal
+
+### 2. Autonomous Obstacle Avoidance (`obstacle_avoider_node.cpp`)
+
+Fully autonomous robot that moves forward and avoids obstacles automatically.
+
+**Features:**
+- Continuous forward movement
+- Automatic obstacle detection using laser scan
+- Turn-in-place behavior when obstacle detected
+- No user input required
+
+**Usage:**
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Run autonomous avoidance
+source install/setup.bash
+ros2 run matrix_publisher obstacle_avoider_node
+```
+
+**Behavior:**
+- Moves forward at 0.2 m/s when path is clear
+- Stops and turns right when obstacle within 0.3 meters
+- Monitors 30-degree cone in front of robot
+- Provides real-time feedback in terminal
+
+### 3. Simple Velocity Publisher (`cmd_vel_publisher.cpp`)
+
+Basic demonstration of publishing velocity commands to move the robot.
+
+**Features:**
+- Continuous forward movement
+- Simple timer-based publishing
+- Good for testing basic robot movement
+
+**Usage:**
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Run velocity publisher
+source install/setup.bash
+ros2 run matrix_publisher cmd_vel_publisher
+```
+
+**Behavior:**
+- Publishes forward velocity (0.2 m/s) every 500ms
+- Robot moves straight forward continuously
+- Simple demonstration of `/cmd_vel` publishing
+
+## Building the C++ Nodes
+
+Make sure to install the required dependencies:
+
+```bash
+# Install sensor and visualization message packages
+sudo apt install ros-humble-sensor-msgs ros-humble-visualization-msgs
+
+# Build the package
+colcon build --packages-select matrix_publisher
+
+# Source the workspace
+source install/setup.bash
+```
+
+## Node Comparison
+
+| Node | Control Type | Obstacle Avoidance | User Input | Best For |
+|------|-------------|-------------------|------------|----------|
+| `teleop_control_node` | Manual + Safety | ✅ Override | Keyboard | Learning/Testing |
+| `obstacle_avoider_node` | Autonomous | ✅ Active | None | Autonomous Demo |
+| `cmd_vel_publisher` | Programmed | ❌ None | None | Basic Movement |
+
+## Advanced Features
+
+### Laser Scan Integration
+The smart teleop and obstacle avoider nodes use the `/scan` topic to receive laser range data:
+- 360-degree laser range measurements
+- Obstacle detection within configurable distance thresholds
+- Real-time safety decisions based on sensor data
+
+### RViz Visualization
+The smart teleop node publishes visualization markers:
+- Red spheres indicate detected obstacles
+- Markers appear at obstacle positions relative to robot
+- View in RViz by adding "Marker" display type
+
+### Safety Systems
+Both obstacle-aware nodes implement safety features:
+- Distance thresholds (0.3 meters default)
+- Immediate stop commands when obstacles detected
+- Graceful recovery when path clears
 
 ---
 
