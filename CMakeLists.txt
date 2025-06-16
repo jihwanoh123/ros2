@@ -10,6 +10,9 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(example_interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
      "srv/MultiplyTwoFloats.srv"
@@ -35,6 +38,14 @@ add_executable(multiply_server_node src/multiply_server_node.cpp)
 ament_target_dependencies(multiply_server_node rclcpp)
 rosidl_target_interfaces(multiply_server_node
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
+add_executable(laser_listener_node src/laser_listener_node.cpp)
+ament_target_dependencies(laser_listener_node rclcpp sensor_msgs)
+add_executable(obstacle_avoider_node src/obstacle_avoider_node.cpp)
+ament_target_dependencies(obstacle_avoider_node rclcpp sensor_msgs geometry_msgs)
+add_executable(cmd_vel_publisher src/cmd_vel_publisher.cpp)
+ament_target_dependencies(cmd_vel_publisher rclcpp geometry_msgs)
+add_executable(teleop_control_node src/teleop_control_node.cpp)
+ament_target_dependencies(teleop_control_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
 
 # Install executable
 install(TARGETS matrix_publisher_node
@@ -50,6 +61,14 @@ install(TARGETS interactive_client_node
 install(TARGETS bridge_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS multiply_server_node
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS laser_listener_node 
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS obstacle_avoider_node 
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS cmd_vel_publisher 
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS teleop_control_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
