@@ -230,19 +230,169 @@ ros2 topic echo /odom
 ros2 service list
 ```
 
-## TurtleBot3 Navigation (Advanced)
+## TurtleBot3 SLAM Mapping and Navigation (Advanced)
 
-For autonomous navigation capabilities:
+### SLAM (Simultaneous Localization and Mapping)
+
+Create maps of unknown environments while simultaneously localizing the robot within those maps.
+
+#### Step 1: Launch SLAM Mapping
 
 ```bash
-# Install navigation packages
-sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup
+# Terminal 1: Launch Gazebo simulation
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
 
-# Launch navigation (in separate terminal after Gazebo is running)
-ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True
+# Terminal 2: Launch SLAM mapping (includes RViz automatically)
+export TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_cartographer cartographer.launch.py use_sim_time:=True
 ```
 
-This enables SLAM (Simultaneous Localization and Mapping) and autonomous navigation features.
+This will launch both Cartographer SLAM and RViz visualization automatically.
+
+#### Step 2: Drive Robot to Create Map
+
+Use any of the teleop methods to drive the robot around:
+
+```bash
+# Terminal 3: Use custom teleop script
+python3 better_teleop.py
+
+# OR use C++ smart teleop
+source install/setup.bash
+ros2 run matrix_publisher teleop_control_node
+
+# OR use standard teleop
+ros2 run turtlebot3_teleop teleop_keyboard
+```
+
+**Mapping Tips:**
+- Drive slowly and systematically
+- Cover all areas you want mapped
+- Avoid rapid turns or movements
+- Let the robot see each area from multiple angles
+- The map appears in RViz as you explore
+
+#### Step 3: Save the Map
+
+Once you're satisfied with the map, save it:
+
+```bash
+# Terminal 4: Save the map (while SLAM is still running)
+ros2 run nav2_map_server map_saver_cli -f ~/my_map
+
+# This creates two files:
+# ~/my_map.pgm (image file)
+# ~/my_map.yaml (metadata file)
+```
+
+**Map Files Created:**
+- `my_map.pgm` - Grayscale image of the map
+- `my_map.yaml` - Map metadata (resolution, origin, occupied thresholds)
+
+#### Alternative: Using SLAM Toolbox
+
+You can also use SLAM Toolbox instead of Cartographer:
+
+```bash
+# Terminal 2: Launch SLAM Toolbox (instead of cartographer, also includes RViz)
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=True
+
+# Save map with SLAM Toolbox
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "name: data: 'my_map'"
+```
+
+### Navigation with Saved Maps
+
+Use your saved map for autonomous navigation:
+
+#### Step 1: Launch Navigation with Your Map
+
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Launch navigation with your saved map
+export TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/home/jihwanoh/my_map.yaml
+
+# Terminal 3: Launch RViz for navigation
+ros2 launch turtlebot3_navigation2 rviz_launch.py
+```
+
+#### Step 2: Set Initial Pose and Navigate
+
+1. **Set Initial Pose in RViz:**
+   - Click "2D Pose Estimate" button
+   - Click and drag on the map where the robot is located
+   - The robot should localize on the map
+
+2. **Set Navigation Goal:**
+   - Click "2D Goal Pose" button  
+   - Click where you want the robot to go
+   - Robot will plan path and navigate autonomously
+
+### Map Management Commands
+
+```bash
+# View map metadata
+cat ~/my_map.yaml
+
+# List saved maps
+ls -la ~/*.yaml ~/*.pgm
+
+# Copy maps to different location
+cp ~/my_map.* /path/to/maps/directory/
+
+# Load specific map for navigation
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/full/path/to/your_map.yaml
+```
+
+### Troubleshooting SLAM and Mapping
+
+**Common Issues:**
+
+1. **Map not appearing in RViz:**
+   - Check that `/map` topic is being published: `ros2 topic echo /map`
+   - Verify RViz is subscribed to correct topics
+   - Restart RViz if needed
+
+2. **Poor map quality:**
+   - Drive slower during mapping
+   - Ensure good lighting in simulation
+   - Cover areas multiple times from different angles
+   - Check laser scan data: `ros2 topic echo /scan`
+
+3. **Map saving fails:**
+   - Ensure SLAM node is still running
+   - Check write permissions in target directory
+   - Verify map topic is active: `ros2 topic list | grep map`
+
+4. **Navigation issues:**
+   - Verify map file paths are correct
+   - Check that robot is properly localized (green arrows in RViz)
+   - Ensure costmaps are generated properly
+
+### Advanced Mapping Features
+
+**Real-time Map Updates:**
+```bash
+# Monitor mapping progress
+ros2 topic echo /map_metadata
+
+# View transform tree
+ros2 run tf2_tools view_frames.py
+```
+
+**Map Quality Assessment:**
+```bash
+# Check map resolution and size
+rostopic echo /map_metadata
+
+# Verify laser scan quality
+ros2 topic echo /scan | head -20
+```
+
+This enables complete SLAM mapping and autonomous navigation capabilities.
 
 # C++ Robot Control Nodes
 
