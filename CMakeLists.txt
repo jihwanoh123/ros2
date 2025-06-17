@@ -13,6 +13,7 @@ find_package(example_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
      "srv/MultiplyTwoFloats.srv"
@@ -48,6 +49,10 @@ add_executable(teleop_control_node src/teleop_control_node.cpp)
 ament_target_dependencies(teleop_control_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
 add_executable(wall_follower_node src/wall_follower_node.cpp)
 ament_target_dependencies(wall_follower_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
+add_executable(pid_wall_follower_node src/pid_wall_follower_node.cpp)
+ament_target_dependencies(pid_wall_follower_node sensor_msgs visualization_msgs nav_msgs rclcpp geometry_msgs std_msgs)
+add_executable(pid_obstacle_avoider_node src/pid_obstacle_avoider_node.cpp)
+ament_target_dependencies(pid_obstacle_avoider_node sensor_msgs visualization_msgs rclcpp geometry_msgs std_msgs)
 
 # Install executable
 install(TARGETS matrix_publisher_node
@@ -73,7 +78,10 @@ install(TARGETS cmd_vel_publisher
 install(TARGETS teleop_control_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS wall_follower_node
-
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS pid_wall_follower_node
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS pid_obstacle_avoider_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

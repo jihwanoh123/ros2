@@ -14,10 +14,14 @@ matrix_publisher/
 │   ├── teleop_control_node.cpp     # C++ keyboard teleop with obstacle avoidance
 │   ├── obstacle_avoider_node.cpp   # Autonomous obstacle avoidance node
 │   ├── wall_follower_node.cpp      # Advanced wall following with dual modes
+│   ├── pid_wall_follower_node.cpp  # PID-based wall following with advanced control
 │   └── cmd_vel_publisher.cpp       # Simple velocity publisher node
+├── include/
+│   └── pid_controller.hpp          # Robust PID controller implementation
 ├── srv/
 │   └── MultiplyTwoFloats.srv       # Service definition
 ├── better_teleop.py               # Python keyboard teleop script
+├── pid_monitor_working.py         # Real-time PID performance monitor
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
@@ -242,7 +246,7 @@ This enables SLAM (Simultaneous Localization and Mapping) and autonomous navigat
 
 # C++ Robot Control Nodes
 
-This package includes several C++ nodes for robot control and obstacle avoidance. These demonstrate different approaches to robot control in ROS2.
+This package includes several C++ nodes for robot control and obstacle avoidance. These demonstrate different approaches to robot control in ROS2, including advanced PID (Proportional-Integral-Derivative) control systems for precise and smooth robot navigation.
 
 ## C++ Control Nodes Overview
 
@@ -378,6 +382,167 @@ ros2 run matrix_publisher cmd_vel_publisher
 - Robot moves straight forward continuously
 - Simple demonstration of `/cmd_vel` publishing
 
+## PID Control Nodes (Advanced)
+
+### 5. PID Wall Follower (`pid_wall_follower_node.cpp`)
+
+Advanced wall following robot with sophisticated PID control systems for smooth and precise navigation.
+
+**Features:**
+- **Multiple PID Controllers:** Separate controllers for wall distance, obstacle avoidance, and speed control
+- **Intelligent Mode Switching:** Automatic switching between wall following, obstacle avoidance, and exploration
+- **Smooth Control:** 20Hz control loop with proper time step management
+- **Real-time Tuning:** Runtime PID gain adjustment with 'p' key
+- **Advanced Sensor Processing:** Sector-based laser scan averaging for stable readings
+- **Comprehensive Visualization:** RViz markers and debug data publishing
+
+**Usage:**
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Run PID wall follower
+source install/setup.bash
+ros2 run matrix_publisher pid_wall_follower_node
+
+# Terminal 3: Monitor PID performance
+python3 src/cpp/pid_monitor_working.py
+```
+
+**Controls:**
+- `m` - Toggle between Manual and Autonomous modes
+- `p` - Cycle through PID gain presets (Conservative/Balanced/Aggressive)
+- **Manual Mode:** `w/a/d/x` for movement control
+- **Autonomous Mode:** Fully automatic wall following
+
+**PID Controllers:**
+- **Wall Distance PID:** P=2.0, I=0.1, D=0.5 (maintains 0.5m from walls)
+- **Obstacle Avoidance PID:** P=3.0, I=0.0, D=0.8 (emergency obstacle avoidance)
+- **Speed Control PID:** P=1.5, I=0.05, D=0.3 (smooth speed transitions)
+
+**Advanced Features:**
+- **Anti-windup Protection:** Prevents integral term from growing excessively
+- **Derivative Kick Prevention:** Smooth derivative calculations
+- **Output Saturation:** Bounded control outputs for safety
+- **Mode Persistence:** Intelligent wall preference memory
+- **Real-time Debug Data:** Published to `/pid_debug` topic
+
+
+
+## PID Controller Implementation
+
+### Core PID Class (`include/pid_controller.hpp`)
+
+A robust, reusable PID controller implementation with advanced features:
+
+**Key Features:**
+- **Anti-windup Protection:** Prevents integral term saturation
+- **Derivative Kick Prevention:** Smooth derivative calculations
+- **Output Saturation:** Configurable min/max output limits
+- **Runtime Tuning:** Dynamic gain adjustment
+- **Component Tracking:** Individual P, I, D term monitoring
+
+**Constructor Parameters:**
+```cpp
+PIDController(double kp, double ki, double kd, 
+              double output_min = -1.0, double output_max = 1.0,
+              double integral_max = 1.0)
+```
+
+**Usage Example:**
+```cpp
+// Create PID controller
+PIDController pid(2.0, 0.1, 0.5, -2.0, 2.0);
+
+// In control loop
+double output = pid.compute(setpoint, measurement, dt);
+
+// Get individual components for debugging
+auto components = pid.getLastComponents();
+RCLCPP_INFO(logger, "P=%.2f I=%.2f D=%.2f", 
+           components.proportional, 
+           components.integral, 
+           components.derivative);
+```
+
+### Angular PID Controller
+
+Specialized PID controller for angular control with:
+- **Angle Wrapping:** Proper handling of circular angles
+- **Deadband:** Reduces oscillation near setpoint
+- **Feedforward:** Optional velocity feedforward term
+
+## PID Performance Monitoring
+
+### Real-time Visualization (`pid_monitor_working.py`)
+
+Python script for reliable real-time PID performance monitoring with live plots:
+
+**Features:**
+- **Live Plotting:** Real-time distance and PID error visualization
+- **Dual Plots:** Distance measurements and PID error tracking
+- **Auto-scaling:** Dynamic axis adjustment
+- **Reliable Updates:** Updates every 2 seconds with guaranteed visibility
+- **Simple Architecture:** Uses `spin_once()` for maximum reliability
+
+**Usage:**
+```bash
+# Monitor PID performance (while PID node is running)
+python3 src/cpp/pid_monitor_working.py
+```
+
+**Requirements:**
+```bash
+# Install matplotlib if needed
+sudo apt install python3-matplotlib python3-tk
+```
+
+**Monitored Data:**
+- Front/Left/Right distances
+- Target distance
+- PID error signal
+- Real-time timestamps
+
+## PID Tuning Guide
+
+### Understanding PID Gains
+
+**Proportional (P) Gain:**
+- Controls response strength to current error
+- Higher P = faster response, but may cause overshoot
+- Too high = oscillation, too low = slow response
+
+**Integral (I) Gain:**
+- Eliminates steady-state error
+- Accumulates error over time
+- Too high = windup and instability
+
+**Derivative (D) Gain:**
+- Predicts future error based on rate of change
+- Reduces overshoot and improves stability
+- Too high = noise amplification
+
+### Tuning Process
+
+1. **Start with P-only:** Set I=0, D=0, increase P until oscillation
+2. **Add D term:** Increase D to reduce oscillation
+3. **Add I term:** Small I to eliminate steady-state error
+4. **Fine-tune:** Adjust all gains for optimal performance
+
+### Preset Gain Sets
+
+**Conservative (Stable):**
+- Wall Following: P=1.5, I=0.05, D=0.3
+- Good for: Learning, testing, stable environments
+
+**Balanced (Default):**
+- Wall Following: P=2.0, I=0.1, D=0.5
+- Good for: General use, mixed environments
+
+**Aggressive (Fast):**
+- Wall Following: P=3.0, I=0.2, D=0.8
+- Good for: Fast navigation, open spaces
+
 ## Building the C++ Nodes
 
 Make sure to install the required dependencies:
@@ -395,12 +560,13 @@ source install/setup.bash
 
 ## Node Comparison
 
-| Node | Control Type | Obstacle Avoidance | User Input | Best For |
-|------|-------------|-------------------|------------|----------|
-| `teleop_control_node` | Manual + Safety | ✅ Override | Keyboard | Learning/Testing |
-| `obstacle_avoider_node` | Autonomous | ✅ Active | None | Autonomous Demo |
-| `wall_follower_node` | Dual Mode | ✅ Advanced | Mode Toggle | Wall Navigation |
-| `cmd_vel_publisher` | Programmed | ❌ None | None | Basic Movement |
+| Node | Control Type | Obstacle Avoidance | User Input | PID Control | Best For |
+|------|-------------|-------------------|------------|-------------|----------|
+| `teleop_control_node` | Manual + Safety | ✅ Override | Keyboard | ❌ | Learning/Testing |
+| `obstacle_avoider_node` | Autonomous | ✅ Active | None | ❌ | Basic Autonomous Demo |
+| `wall_follower_node` | Dual Mode | ✅ Advanced | Mode Toggle | ❌ | Wall Navigation |
+| `cmd_vel_publisher` | Programmed | ❌ None | None | ❌ | Basic Movement |
+| `pid_wall_follower_node` | Dual Mode | ✅ PID-based | Mode Toggle | ✅ Multi-PID | Advanced Wall Following |
 
 ## Advanced Features
 
@@ -435,36 +601,28 @@ All laser-based nodes use the correct ROS2 laser scan convention:
 
 ## Prerequisites
 
-- ROS2 installed (conda environment with robostack)
-- Workspace set up in `/Users/jihwan/ros2_ws`
+- ROS2 Humble installed
+- Workspace set up (e.g., `~/ros2_ws`)
 - Basic understanding of C++ and ROS2 concepts
 
 ## Building the Package
 
-**Important**: This package requires using system compilers due to conda environment issues with clang.
-
 ### Step 1: Navigate to workspace
 ```bash
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 ```
 
 ### Step 2: Build the package
 ```bash
-colcon build --packages-select matrix_publisher --cmake-args -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+colcon build --packages-select matrix_publisher
 ```
-
-**Note**: The specific compiler flags are required to bypass broken conda clang compilers.
 
 ### Step 3: Source the environment
 ```bash
 source install/setup.bash
 ```
 
-**Expected warnings** (safe to ignore):
-```
-/Users/jihwan/miniforge3/envs/ros2/local_setup.bash:.:11: no such file or directory: /Users/jihwan/ros2_ws/local_setup.sh
-not found: "/Users/jihwan/ros2_ws/local_setup.bash"
-```
+
 
 ## Running the Nodes
 
@@ -473,7 +631,7 @@ not found: "/Users/jihwan/ros2_ws/local_setup.bash"
 #### Terminal 1 - Run Publisher
 ```bash
 # Make sure you're in the workspace directory
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
@@ -492,7 +650,7 @@ ros2 run matrix_publisher matrix_publisher_node
 #### Terminal 2 - Run Subscriber
 ```bash
 # Open a new terminal and navigate to workspace
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
@@ -517,7 +675,7 @@ Reshaped matrix:
 #### Terminal 1 - Run Server
 ```bash
 # Make sure you're in the workspace directory
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
@@ -529,7 +687,7 @@ ros2 run matrix_publisher multiply_server_node
 #### Terminal 2 - Run Bridge
 ```bash
 # Open a new terminal and navigate to workspace
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
@@ -541,7 +699,7 @@ ros2 run matrix_publisher bridge_node
 #### Terminal 3 - Publish to Input Topic
 ```bash
 # Open a new terminal and navigate to workspace
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
@@ -553,7 +711,7 @@ ros2 topic pub /multiply_input example_interfaces/msg/Int64MultiArray "{data: [5
 #### Terminal 4 - Monitor Results
 ```bash
 # Open a new terminal and navigate to workspace
-cd /Users/jihwan/ros2_ws
+cd ~/ros2_ws
 
 # Source the environment
 source install/setup.bash
