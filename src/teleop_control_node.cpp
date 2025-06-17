@@ -41,7 +41,7 @@ public:
             std::bind(&TeleopBot::publish_cmd, this));
         startup_time = this->now();
         RCLCPP_INFO(this->get_logger(), "Smart Teleop Ready! Controls: w(forward), a(left), d(right), s(stop), q(quit)");
-        RCLCPP_INFO(this->get_logger(), "Safety: Front detection 0.7m (±5°), Side detection 0.5m (±15°)");
+        RCLCPP_INFO(this->get_logger(), "Safety: Front detection 0.3m (±5°), Side detection 0.3m (±15°)");
     }
 
 private:
@@ -72,7 +72,7 @@ private:
         const int FRONT_WINDOW = 10;  // ±10 points (~5°) directly ahead  
         float front_min_distance = std::numeric_limits<float>::max();
         bool front_obstacle = false;
-        const float FRONT_SAFETY_DISTANCE = 0.7;  // Fixed safety for front detection
+        const float FRONT_SAFETY_DISTANCE = 0.3;  // Fixed safety for front detection
         
         // Check front sector: index 0 ± FRONT_WINDOW (wrapping around if needed)
         for (int offset = -FRONT_WINDOW; offset <= FRONT_WINDOW; ++offset) {
@@ -90,7 +90,7 @@ private:
         float wide_min_distance = std::numeric_limits<float>::max();
         bool side_obstacle = false;
         int obstacle_count = 0;
-        const float SIDE_SAFETY_DISTANCE = 0.5;  // Can be closer to sides
+        const float SIDE_SAFETY_DISTANCE = 0.3;  // Can be closer to sides
         
         // Check wide front sector: index 0 ± WIDE_WINDOW (wrapping around if needed)
         for (int offset = -WIDE_WINDOW; offset <= WIDE_WINDOW; ++offset) {

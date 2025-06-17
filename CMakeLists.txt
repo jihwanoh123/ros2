@@ -46,6 +46,8 @@ add_executable(cmd_vel_publisher src/cmd_vel_publisher.cpp)
 ament_target_dependencies(cmd_vel_publisher rclcpp geometry_msgs)
 add_executable(teleop_control_node src/teleop_control_node.cpp)
 ament_target_dependencies(teleop_control_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
+add_executable(wall_follower_node src/wall_follower_node.cpp)
+ament_target_dependencies(wall_follower_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
 
 # Install executable
 install(TARGETS matrix_publisher_node
@@ -69,6 +71,9 @@ install(TARGETS obstacle_avoider_node
 install(TARGETS cmd_vel_publisher 
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS teleop_control_node
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS wall_follower_node
+
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

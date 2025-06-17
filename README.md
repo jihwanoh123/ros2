@@ -13,6 +13,7 @@ matrix_publisher/
 │   ├── bridge_node.cpp             # Topic-to-service bridge node
 │   ├── teleop_control_node.cpp     # C++ keyboard teleop with obstacle avoidance
 │   ├── obstacle_avoider_node.cpp   # Autonomous obstacle avoidance node
+│   ├── wall_follower_node.cpp      # Advanced wall following with dual modes
 │   └── cmd_vel_publisher.cpp       # Simple velocity publisher node
 ├── srv/
 │   └── MultiplyTwoFloats.srv       # Service definition
@@ -308,7 +309,52 @@ ros2 run matrix_publisher obstacle_avoider_node
 - Monitors 30-degree cone in front of robot
 - Provides real-time feedback in terminal
 
-### 3. Simple Velocity Publisher (`cmd_vel_publisher.cpp`)
+### 3. Advanced Wall Follower (`wall_follower_node.cpp`)
+
+Intelligent wall following robot with dual manual/autonomous modes and persistent navigation behavior.
+
+**Features:**
+- Dual mode operation: Manual teleop + Autonomous wall following
+- Persistent wall following with memory (prevents oscillation)
+- Smart obstacle avoidance with committed turning
+- Adaptive wall detection and following
+- Counter-clockwise preference (left wall following)
+- Anti-oscillation algorithms for smooth navigation
+
+**Usage:**
+```bash
+# Terminal 1: Launch Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Run wall follower
+source install/setup.bash
+ros2 run matrix_publisher wall_follower_node
+```
+
+**Controls:**
+- `m` - Toggle between Manual and Autonomous modes
+- **Manual Mode:**
+  - `w` - Move forward
+  - `a` - Turn left
+  - `d` - Turn right
+  - `x` - Stop
+- **Autonomous Mode:** Robot automatically follows walls
+
+**Autonomous Behavior:**
+- **Wall Detection:** Detects walls within 1.0m using laser scan
+- **Wall Following:** Maintains 0.4m distance from walls
+- **Persistence:** Remembers which wall to follow (left/right preference)
+- **Smart Switching:** Only switches walls after 2+ seconds of wall loss
+- **Obstacle Avoidance:** Aggressive turning with 3-second commitment periods
+- **Search Mode:** Explores environment when no walls detected
+
+**Advanced Algorithms:**
+- **Committed Turning:** Prevents oscillation by committing to turn direction for 3 seconds
+- **Wall Preference Memory:** Maintains consistent following direction (counter-clockwise preferred)
+- **Proportional Control:** Smooth wall following with distance-based corrections
+- **Backup Capability:** Reverses when critically close to obstacles (<0.3m)
+
+### 4. Simple Velocity Publisher (`cmd_vel_publisher.cpp`)
 
 Basic demonstration of publishing velocity commands to move the robot.
 
@@ -353,6 +399,7 @@ source install/setup.bash
 |------|-------------|-------------------|------------|----------|
 | `teleop_control_node` | Manual + Safety | ✅ Override | Keyboard | Learning/Testing |
 | `obstacle_avoider_node` | Autonomous | ✅ Active | None | Autonomous Demo |
+| `wall_follower_node` | Dual Mode | ✅ Advanced | Mode Toggle | Wall Navigation |
 | `cmd_vel_publisher` | Programmed | ❌ None | None | Basic Movement |
 
 ## Advanced Features
@@ -374,6 +421,15 @@ Both obstacle-aware nodes implement safety features:
 - Distance thresholds (0.3 meters default)
 - Immediate stop commands when obstacles detected
 - Graceful recovery when path clears
+
+### Laser Scan Indexing (Critical Implementation Detail)
+All laser-based nodes use the correct ROS2 laser scan convention:
+- **Index 0**: Front (0°)
+- **Index total_ranges/4**: Left side (90° counter-clockwise)
+- **Index total_ranges/2**: Back (180°)
+- **Index 3*total_ranges/4**: Right side (270° counter-clockwise)
+
+**Important**: ROS2 laser scans rotate **counter-clockwise**, not clockwise. This was a critical bug fix that prevented left/right confusion in wall following and obstacle detection.
 
 ---
 
