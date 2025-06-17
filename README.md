@@ -18,6 +18,9 @@ matrix_publisher/
 │   └── cmd_vel_publisher.cpp       # Simple velocity publisher node
 ├── include/
 │   └── pid_controller.hpp          # Robust PID controller implementation
+├── maps/
+│   ├── my_map.pgm                  # Saved map image file
+│   └── my_map.yaml                 # Saved map metadata
 ├── srv/
 │   └── MultiplyTwoFloats.srv       # Service definition
 ├── better_teleop.py               # Python keyboard teleop script
@@ -335,16 +338,19 @@ ros2 launch turtlebot3_navigation2 rviz_launch.py
 
 ```bash
 # View map metadata
-cat ~/my_map.yaml
+cat ~/ros2_ws/src/cpp/maps/my_map.yaml
 
-# List saved maps
-ls -la ~/*.yaml ~/*.pgm
+# List saved maps in project directory
+ls -la ~/ros2_ws/src/cpp/maps/
 
-# Copy maps to different location
-cp ~/my_map.* /path/to/maps/directory/
+# Create maps directory in your project
+mkdir -p ~/ros2_ws/src/cpp/maps
+
+# Copy maps to project location
+cp ~/my_map.* ~/ros2_ws/src/cpp/maps/
 
 # Load specific map for navigation
-ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/full/path/to/your_map.yaml
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/home/jihwanoh/ros2_ws/src/cpp/maps/my_map.yaml
 ```
 
 ### Troubleshooting SLAM and Mapping
