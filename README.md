@@ -15,6 +15,9 @@ matrix_publisher/
 │   ├── obstacle_avoider_node.cpp   # Autonomous obstacle avoidance node
 │   ├── wall_follower_node.cpp      # Advanced wall following with dual modes
 │   ├── pid_wall_follower_node.cpp  # PID-based wall following with advanced control
+│   ├── goal_sender_node.cpp        # Single navigation goal sender
+│   ├── goal_sender_node_multi.cpp  # Multiple sequential navigation goals
+│   ├── goal_sender_node_random.cpp # Random navigation goal generator
 │   └── cmd_vel_publisher.cpp       # Simple velocity publisher node
 ├── include/
 │   └── pid_controller.hpp          # Robust PID controller implementation
@@ -25,6 +28,7 @@ matrix_publisher/
 │   └── MultiplyTwoFloats.srv       # Service definition
 ├── better_teleop.py               # Python keyboard teleop script
 ├── pid_monitor_working.py         # Real-time PID performance monitor
+├── nav2_params_fixed.yaml         # Fixed navigation parameters for troubleshooting
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
@@ -316,18 +320,39 @@ ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
 
 # Terminal 2: Launch navigation with your saved map
 export TURTLEBOT3_MODEL=waffle
-ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/home/jihwanoh/my_map.yaml
+
+# Option A: Standard navigation launch (may have plugin issues)
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=/home/jihwanoh/ros2_ws/src/cpp/maps/my_map.yaml
+
+# Option B: Use fixed parameters (RECOMMENDED - fixes navigation plugin issues)
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True params_file:=/home/jihwanoh/ros2_ws/src/cpp/nav2_params_fixed.yaml
 
 # Terminal 3: Launch RViz for navigation
 ros2 launch turtlebot3_navigation2 rviz_launch.py
 ```
 
+**When to use `nav2_params_fixed.yaml`:**
+- ✅ **Use when**: You encounter "navigate_to_pose action server not available" errors
+- ✅ **Use when**: Navigation goals don't work even after setting initial pose
+- ✅ **Use when**: You see plugin loading errors in navigation logs
+- ✅ **Recommended**: Use by default to avoid common navigation issues
+
+**What `nav2_params_fixed.yaml` contains:**
+- Fixed plugin names (correct `/` format instead of `::`)
+- Absolute map file path
+- TurtleBot3-optimized navigation parameters
+- Proper lifecycle node configuration
+
 #### Step 2: Set Initial Pose and Navigate
 
 1. **Set Initial Pose in RViz:**
+   - **Important**: If you can't immediately set the 2D pose, try this fix:
+     - Change the Fixed Frame from "map" to "base_link" or "odom"
+     - Wait 2-3 seconds, then change it back to "map"
+     - This refreshes the coordinate frame synchronization
    - Click "2D Pose Estimate" button
    - Click and drag on the map where the robot is located
-   - The robot should localize on the map
+   - The robot should localize on the map (green arrows appear)
 
 2. **Set Navigation Goal:**
    - Click "2D Goal Pose" button  
@@ -373,10 +398,128 @@ ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:
    - Check write permissions in target directory
    - Verify map topic is active: `ros2 topic list | grep map`
 
-4. **Navigation issues:**
+4. **RViz 2D Pose Estimate not working:**
+   - **Symptom**: Can't click to set initial robot pose
+   - **Cause**: Transform frame synchronization timing issues
+   - **Quick Fix**: 
+     - In RViz, change "Fixed Frame" from "map" to "base_link"
+     - Wait 2-3 seconds
+     - Change "Fixed Frame" back to "map"
+     - Now "2D Pose Estimate" should work
+   - **Alternative**: Wait 10+ seconds after launching navigation before opening RViz
+
+5. **Navigation issues:**
    - Verify map file paths are correct
    - Check that robot is properly localized (green arrows in RViz)
    - Ensure costmaps are generated properly
+
+### Troubleshooting Navigation Issues
+
+**Critical Navigation Problem: "navigate_to_pose action server is not available"**
+
+If you encounter the error `navigate_to_pose action server is not available. Is the initial pose set?` even after setting the initial pose, this indicates navigation nodes failed to initialize properly.
+
+**Symptoms:**
+- Localization shows "active" in RViz
+- Initial pose is set correctly
+- Map is loaded and visible
+- But navigation goals don't work
+
+**Root Cause:**
+Navigation2 plugin configuration issues, typically:
+- Incorrect plugin names (using `::` instead of `/`)
+- Map file path issues (relative vs absolute paths)
+- Lifecycle manager failing to activate nodes
+
+**Solution Steps:**
+
+1. **Fix Map File Path:**
+   ```bash
+   # Ensure map.yaml uses absolute paths
+   cd ~/ros2_ws/src/cpp/maps
+   sed -i 's|image: my_map.pgm|image: /home/jihwanoh/ros2_ws/src/cpp/maps/my_map.pgm|' my_map.yaml
+   ```
+
+2. **Use Fixed Navigation Parameters:**
+   ```bash
+   # Stop current navigation (Ctrl+C), then launch with fixed params
+   export TURTLEBOT3_MODEL=waffle
+   ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True params_file:=/home/jihwanoh/ros2_ws/src/cpp/nav2_params_fixed.yaml
+   
+   # Note: The fixed params file includes the correct map path automatically
+   # No need to specify map:= parameter when using params_file:=
+   ```
+
+3. **Check Navigation Node Status:**
+   ```bash
+   # Use the provided status check script
+   ./check_nav_status.sh
+   ```
+
+**Key Configuration Fixes in nav2_params_fixed.yaml:**
+- ✅ `plugin: "nav2_navfn_planner/NavfnPlanner"` (correct format)
+- ✅ Absolute map path: `/home/jihwanoh/ros2_ws/src/cpp/maps/my_map.yaml`
+- ✅ Proper lifecycle node configuration
+- ✅ TurtleBot3-optimized parameters
+
+**Important**: The `nav2_params_fixed.yaml` file is located in your workspace root (`/home/jihwanoh/ros2_ws/nav2_params_fixed.yaml`) and includes the map path automatically. When using `params_file:=`, you don't need to specify the `map:=` parameter separately.
+
+**Verification:**
+After applying the fix, you should see:
+- All navigation nodes start without errors
+- No plugin loading failures in logs
+- "2D Goal Pose" works immediately in RViz
+- Robot navigates autonomously to set goals
+
+**Alternative Debugging:**
+```bash
+# Check individual node states
+ros2 service call /bt_navigator/get_state lifecycle_msgs/srv/GetState
+ros2 service call /planner_server/get_state lifecycle_msgs/srv/GetState
+ros2 service call /controller_server/get_state lifecycle_msgs/srv/GetState
+
+# All should return: current_state=lifecycle_msgs.msg.State(id=3, label='active')
+```
+
+### RViz Frame Synchronization Issues
+
+**Problem**: When RViz first opens, you may not be able to set the 2D Pose Estimate immediately.
+
+**Root Cause**: 
+RViz needs time to synchronize coordinate frame transforms between:
+- `map` frame (global map coordinates)  
+- `odom` frame (robot odometry)
+- `base_link` frame (robot body)
+
+The transform tree: `map → odom → base_link` must be fully established before pose estimation works.
+
+**Solutions:**
+
+1. **Frame Switching Method (Recommended):**
+   ```
+   RViz → Global Options → Fixed Frame → Change "map" to "base_link"
+   Wait 2-3 seconds
+   Change back to "map"
+   Now "2D Pose Estimate" works
+   ```
+
+2. **Timing Method:**
+   ```bash
+   # Launch navigation first, wait 10+ seconds before RViz
+   ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True map:=your_map.yaml
+   sleep 10
+   ros2 launch turtlebot3_navigation2 rviz_launch.py
+   ```
+
+3. **Verification Method:**
+   ```bash
+   # Check if transforms are ready
+   ros2 run tf2_ros tf2_echo map base_link
+   # Should show robot position, not error
+   ```
+
+**Why Frame Switching Works:**
+Switching frames forces RViz to refresh its transform cache and re-establish all coordinate frame relationships, ensuring proper synchronization.
 
 ### Advanced Mapping Features
 
@@ -514,7 +657,86 @@ ros2 run matrix_publisher wall_follower_node
 - **Proportional Control:** Smooth wall following with distance-based corrections
 - **Backup Capability:** Reverses when critically close to obstacles (<0.3m)
 
-### 4. Simple Velocity Publisher (`cmd_vel_publisher.cpp`)
+### 4. Navigation Goal Senders
+
+Automated navigation goal sending nodes for autonomous robot navigation using Navigation2.
+
+#### 4.1. Single Goal Sender (`goal_sender_node.cpp`)
+
+Sends a single navigation goal with dynamic coordinate logging.
+
+**Features:**
+- Single goal execution with action client
+- Dynamic coordinate logging (shows actual x,y values)
+- Result callback handling (success/failure reporting)
+- Prevents goal spam (single execution)
+
+**Usage:**
+```bash
+# Prerequisites: Launch Gazebo + Navigation2 + RViz, set initial pose
+# Terminal 4: Run single goal sender
+source install/setup.bash
+ros2 run matrix_publisher goal_sender_node
+```
+
+**Output Example:**
+```
+[INFO] [goal_sender]: Sending goal to (1.50, 1.50)
+[INFO] [GoalSender]: Goal succeeded!
+```
+
+#### 4.2. Multi-Goal Sender (`goal_sender_node_multi.cpp`)
+
+Sends multiple navigation goals sequentially with progress tracking.
+
+**Features:**
+- Predefined sequence of 3 goals
+- Progress tracking (goal X/Y completed)
+- Automatic goal advancement after success
+- Orientation control (robot facing direction)
+- 2-second delay between goals
+
+**Usage:**
+```bash
+# Prerequisites: Launch Gazebo + Navigation2 + RViz, set initial pose
+source install/setup.bash
+ros2 run matrix_publisher goal_sender_node_multi
+```
+
+**Output Example:**
+```
+[INFO] [multi_goal_sender]: Sending goal 1/3 to (1.50, 1.50) with orientation 1.000
+[INFO] [multi_goal_sender]: Goal 1 succeeded! Moving to next goal...
+[INFO] [multi_goal_sender]: Sending goal 2/3 to (-1.00, 2.00) with orientation 0.707
+[INFO] [multi_goal_sender]: All goals completed!
+```
+
+#### 4.3. Random Goal Generator (`goal_sender_node_random.cpp`)
+
+Continuously generates and sends random navigation goals.
+
+**Features:**
+- Random coordinate generation (-2.0 to 2.0 range)
+- Continuous operation (generates new goals after completion)
+- Goal numbering and success tracking
+- 5-second delay after success, 3-second after failure
+- Modern C++ random number generation
+
+**Usage:**
+```bash
+# Prerequisites: Launch Gazebo + Navigation2 + RViz, set initial pose
+source install/setup.bash
+ros2 run matrix_publisher goal_sender_node_random
+```
+
+**Output Example:**
+```
+[INFO] [random_goal_sender]: Sending random goal #1 to (-0.73, 1.42)
+[INFO] [random_goal_sender]: Random goal #1 succeeded! Generating next goal in 5 seconds...
+[INFO] [random_goal_sender]: Sending random goal #2 to (1.85, -0.91)
+```
+
+### 5. Simple Velocity Publisher (`cmd_vel_publisher.cpp`)
 
 Basic demonstration of publishing velocity commands to move the robot.
 
@@ -1012,4 +1234,41 @@ ros2 interface show matrix_publisher/srv/MultiplyTwoFloats
 ### C++ Resources
 - [C++ Reference](https://en.cppreference.com/)
 - [Modern C++ Features](https://github.com/AnthonyCalandra/modern-cpp-features)
-- [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines) 
+- [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)
+
+---
+
+## Quick Reference: Navigation Troubleshooting
+
+If you encounter navigation issues, these files are provided for troubleshooting:
+
+**Key Files:**
+- `nav2_params_fixed.yaml` - Fixed navigation parameters with correct plugin names
+- `check_nav_status.sh` - Script to check navigation node status
+- Maps in `src/cpp/maps/` - Saved maps with absolute file paths
+
+**Quick Fix Command:**
+```bash
+# Use this if navigation goals don't work
+export TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True params_file:=/home/jihwanoh/ros2_ws/src/cpp/nav2_params_fixed.yaml
+```
+
+**Complete Launch Sequence with Fixed Parameters:**
+```bash
+# Terminal 1: Gazebo
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+# Terminal 2: Navigation with fixed params (RECOMMENDED)
+export TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_navigation2 navigation2.launch.py use_sim_time:=True params_file:=/home/jihwanoh/ros2_ws/src/cpp/nav2_params_fixed.yaml
+
+# Terminal 3: RViz
+ros2 launch turtlebot3_navigation2 rviz_launch.py
+
+# Terminal 4: Goal sender (after setting initial pose in RViz)
+source install/setup.bash
+ros2 run matrix_publisher goal_sender_node
+```
+
+This comprehensive guide covers everything from basic ROS2 concepts to advanced robot navigation and control systems. 

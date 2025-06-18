@@ -8,9 +8,11 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(example_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -51,8 +53,12 @@ add_executable(wall_follower_node src/wall_follower_node.cpp)
 ament_target_dependencies(wall_follower_node sensor_msgs visualization_msgs rclcpp geometry_msgs)
 add_executable(pid_wall_follower_node src/pid_wall_follower_node.cpp)
 ament_target_dependencies(pid_wall_follower_node sensor_msgs visualization_msgs nav_msgs rclcpp geometry_msgs std_msgs)
-add_executable(pid_obstacle_avoider_node src/pid_obstacle_avoider_node.cpp)
-ament_target_dependencies(pid_obstacle_avoider_node sensor_msgs visualization_msgs rclcpp geometry_msgs std_msgs)
+add_executable(goal_sender_node src/goal_sender_node.cpp)
+ament_target_dependencies(goal_sender_node rclcpp geometry_msgs nav2_msgs rclcpp_action)
+add_executable(goal_sender_node_multi src/goal_sender_node_multi.cpp)
+ament_target_dependencies(goal_sender_node_multi rclcpp geometry_msgs nav2_msgs rclcpp_action)
+add_executable(goal_sender_node_random src/goal_sender_node_random.cpp)
+ament_target_dependencies(goal_sender_node_random rclcpp geometry_msgs nav2_msgs rclcpp_action)
 
 # Install executable
 install(TARGETS matrix_publisher_node
@@ -81,7 +87,11 @@ install(TARGETS wall_follower_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS pid_wall_follower_node
   DESTINATION lib/${PROJECT_NAME})
-install(TARGETS pid_obstacle_avoider_node
+install(TARGETS goal_sender_node 
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS goal_sender_node_multi 
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS goal_sender_node_random 
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
